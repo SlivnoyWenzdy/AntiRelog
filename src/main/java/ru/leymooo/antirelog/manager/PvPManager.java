@@ -358,6 +358,41 @@ public class PvPManager {
         bossbarManager.clearBossbar(player);
     }
 
+    public void forceStartPvP(Player player, int pvpTime) {
+        if (isInPvP(player) || isInSilentPvP(player)) {
+            stopPvPSilentInternal(player);
+        }
+        boolean bypassed = isHasBypassPermission(player);
+        if (!hasCustomPvPTime(player)) {
+            customPvpTimes.put(player, pvpTime);
+        }
+        int actualTime = getPlayerPvPTime(player);
+        bossbarManager.createPlayerData(player, actualTime, bypassed);
+        if (!bypassed) {
+            String message = Utils.color(settings.getMessages().getPvpStarted());
+            if (!message.isEmpty()) {
+                player.sendMessage(message);
+            }
+            sendTitles(player, true);
+        }
+        updatePvpMode(player, bypassed, actualTime > 0 ? actualTime : pvpTime);
+        player.setNoDamageTicks(0);
+    }
+
+    public void forceStartPvPSilent(Player player, int pvpTime) {
+        if (isInPvP(player) || isInSilentPvP(player)) {
+            stopPvPSilentInternal(player);
+        }
+        boolean bypassed = isHasBypassPermission(player);
+        if (!hasCustomPvPTime(player)) {
+            customPvpTimes.put(player, pvpTime);
+        }
+        int actualTime = getPlayerPvPTime(player);
+        bossbarManager.createPlayerData(player, actualTime, bypassed);
+        updatePvpMode(player, bypassed, actualTime > 0 ? actualTime : pvpTime);
+        player.setNoDamageTicks(0);
+    }
+
     public boolean isCommandWhiteListed(String command) {
         if (whiteListedCommands.isEmpty()) {
             return false;
