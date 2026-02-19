@@ -217,30 +217,30 @@ public final class AntiRelogAPI {
         return new PvPSnapshot(player, this);
     }
 
-    public void startPvP(Player player) {
-        pvpManager.forceStartPvP(player, plugin.getSettings().getPvpTime());
+    public boolean startPvP(Player player) {
+        return pvpManager.forceStartPvP(player, plugin.getSettings().getPvpTime());
     }
 
-    public void startPvP(Player player, int time) {
-        pvpManager.forceStartPvP(player, time);
+    public boolean startPvP(Player player, int time) {
+        return pvpManager.forceStartPvP(player, time);
     }
 
-    public void startInfinitePvP(Player player) {
+    public boolean startInfinitePvP(Player player) {
         pvpManager.setPlayerPvPTime(player, INFINITE_TIME);
-        pvpManager.forceStartPvP(player, INFINITE_TIME);
+        return pvpManager.forceStartPvP(player, INFINITE_TIME);
     }
 
-    public void startPvPSilent(Player player) {
-        pvpManager.forceStartPvPSilent(player, plugin.getSettings().getPvpTime());
+    public boolean startPvPSilent(Player player) {
+        return pvpManager.forceStartPvPSilent(player, plugin.getSettings().getPvpTime());
     }
 
-    public void startPvPSilent(Player player, int time) {
-        pvpManager.forceStartPvPSilent(player, time);
+    public boolean startPvPSilent(Player player, int time) {
+        return pvpManager.forceStartPvPSilent(player, time);
     }
 
-    public void startInfinitePvPSilent(Player player) {
+    public boolean startInfinitePvPSilent(Player player) {
         pvpManager.setPlayerPvPTime(player, INFINITE_TIME);
-        pvpManager.forceStartPvPSilent(player, INFINITE_TIME);
+        return pvpManager.forceStartPvPSilent(player, INFINITE_TIME);
     }
 
     public Antirelog getPlugin() {

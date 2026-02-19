@@ -358,7 +358,13 @@ public class PvPManager {
         bossbarManager.clearBossbar(player);
     }
 
-    public void forceStartPvP(Player player, int pvpTime) {
+    public boolean forceStartPvP(Player player, int pvpTime) {
+        if (isInIgnoredWorld(player)) {
+            return false;
+        }
+        if (isInIgnoredRegion(player)) {
+            return false;
+        }
         if (isInPvP(player) || isInSilentPvP(player)) {
             stopPvPSilentInternal(player);
         }
@@ -374,9 +380,16 @@ public class PvPManager {
         sendTitles(player, true);
         updatePvpMode(player, false, actualTime > 0 ? actualTime : pvpTime);
         player.setNoDamageTicks(0);
+        return true;
     }
 
-    public void forceStartPvPSilent(Player player, int pvpTime) {
+    public boolean forceStartPvPSilent(Player player, int pvpTime) {
+        if (isInIgnoredWorld(player)) {
+            return false;
+        }
+        if (isInIgnoredRegion(player)) {
+            return false;
+        }
         if (isInPvP(player) || isInSilentPvP(player)) {
             stopPvPSilentInternal(player);
         }
@@ -384,12 +397,20 @@ public class PvPManager {
             customPvpTimes.put(player, pvpTime);
         }
         int actualTime = getPlayerPvPTime(player);
-        bossbarManager.createPlayerData(player, actualTime, false);
-        updatePvpMode(player, false, actualTime > 0 ? actualTime : pvpTime);
+        bossbarManager.createPlayerData(player, actualTime, true);
+        updatePvpMode(player, true, actualTime > 0 ? actualTime : pvpTime);
         player.setNoDamageTicks(0);
+        return true;
     }
 
     private void forceStartPvPBetween(Player attacker, Player defender) {
+        if (isInIgnoredWorld(attacker) || isInIgnoredWorld(defender)) {
+            return;
+        }
+        if (isInIgnoredRegion(attacker) || isInIgnoredRegion(defender)) {
+            return;
+        }
+
         boolean attackerInPvp = isInPvP(attacker) || isInSilentPvP(attacker);
         boolean defenderInPvp = isInPvP(defender) || isInSilentPvP(defender);
 
