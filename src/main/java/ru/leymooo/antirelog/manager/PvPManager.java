@@ -362,25 +362,23 @@ public class PvPManager {
         bossbarManager.clearBossbar(player);
     }
 
-    public boolean forceStartPvP(Player player, int pvpTime) {
-        if (isInIgnoredWorld(player)) {
-            return false;
-        }
-        if (isInIgnoredRegion(player)) {
-            return false;
-        }
-        if (isHasBypassPermission(player)) {
-            return false;
+    public boolean forceStartPvP(Player player, int pvpTime, boolean checked) {
+        if (checked) {
+            if (isInIgnoredWorld(player)) {
+                return false;
+            }
+            if (isInIgnoredRegion(player)) {
+                return false;
+            }
+            if (isHasBypassPermission(player)) {
+                return false;
+            }
         }
         if (isInAnyPvP(player)) {
             stopPvPSilentInternal(player);
         }
-        if (!hasCustomPvPTime(player)) {
-            customPvpTimes.put(player, pvpTime);
-        }
-        int actualTime = getPlayerPvPTime(player);
-        int effectiveTime = actualTime > 0 ? actualTime : pvpTime;
-        bossbarManager.createPlayerData(player, effectiveTime, false);
+        customPvpTimes.put(player, pvpTime);
+        bossbarManager.createPlayerData(player, pvpTime, false);
         String message = Utils.color(settings.getMessages().getPvpStarted());
         if (!message.isEmpty()) {
             player.sendMessage(message);
@@ -389,46 +387,52 @@ public class PvPManager {
             powerUpsManager.disablePowerUpsWithRunCommands(player, null);
         }
         sendTitles(player, true);
-        updatePvpMode(player, false, effectiveTime);
+        updatePvpMode(player, false, pvpTime);
         player.setNoDamageTicks(0);
-        Bukkit.getPluginManager().callEvent(new PvpStartedEvent(player, player, effectiveTime, PvPStatus.ALL_NOT_IN_PVP));
+        Bukkit.getPluginManager().callEvent(new PvpStartedEvent(player, player, pvpTime, PvPStatus.ALL_NOT_IN_PVP));
         return true;
     }
 
-    public boolean forceStartPvPSilent(Player player, int pvpTime) {
-        if (isInIgnoredWorld(player)) {
-            return false;
-        }
-        if (isInIgnoredRegion(player)) {
-            return false;
-        }
-        if (isHasBypassPermission(player)) {
-            return false;
+    public boolean forceStartPvPSilent(Player player, int pvpTime, boolean checked) {
+        if (checked) {
+            if (isInIgnoredWorld(player)) {
+                return false;
+            }
+            if (isInIgnoredRegion(player)) {
+                return false;
+            }
+            if (isHasBypassPermission(player)) {
+                return false;
+            }
         }
         if (isInAnyPvP(player)) {
             stopPvPSilentInternal(player);
         }
-        if (!hasCustomPvPTime(player)) {
-            customPvpTimes.put(player, pvpTime);
-        }
-        int actualTime = getPlayerPvPTime(player);
-        int effectiveTime = actualTime > 0 ? actualTime : pvpTime;
-        bossbarManager.createPlayerData(player, effectiveTime, false);
+        customPvpTimes.put(player, pvpTime);
+        bossbarManager.createPlayerData(player, pvpTime, false);
         if (settings.isDisablePowerups()) {
             powerUpsManager.disablePowerUps(player, null);
         }
-        updatePvpMode(player, false, effectiveTime);
+        updatePvpMode(player, false, pvpTime);
         player.setNoDamageTicks(0);
-        Bukkit.getPluginManager().callEvent(new PvpStartedEvent(player, player, effectiveTime, PvPStatus.ALL_NOT_IN_PVP));
+        Bukkit.getPluginManager().callEvent(new PvpStartedEvent(player, player, pvpTime, PvPStatus.ALL_NOT_IN_PVP));
         return true;
     }
 
+    public void forceStartPvP(Player player, int pvpTime) {
+        forceStartPvP(player, pvpTime, false);
+    }
+
+    public void forceStartPvPSilent(Player player, int pvpTime) {
+        forceStartPvPSilent(player, pvpTime, false);
+    }
+
     public boolean forceStartPvPChecked(Player player, int pvpTime) {
-        return forceStartPvP(player, pvpTime);
+        return forceStartPvP(player, pvpTime, true);
     }
 
     public boolean forceStartPvPSilentChecked(Player player, int pvpTime) {
-        return forceStartPvPSilent(player, pvpTime);
+        return forceStartPvPSilent(player, pvpTime, true);
     }
 
     private void forceStartPvPBetween(Player attacker, Player defender) {
