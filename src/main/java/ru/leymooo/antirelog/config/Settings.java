@@ -10,7 +10,7 @@ public class Settings extends Configuration {
 
     @Final
     @Key("config-version")
-    private String configVersion = "2.1";
+    private String configVersion = "2.2";
     private Messages messages = new Messages();
 
     @Comment("Кулдавн для обычных золотых яблок во время пвп.")
@@ -100,6 +100,14 @@ public class Settings extends Configuration {
     @Key("blocked-blocks-notifications")
     private BlockedBlocksNotifications blockedBlocksNotifications = new BlockedBlocksNotifications();
 
+    @Comment({"Предметы которые нельзя надевать/экипировать во время PvP.",
+            "Игрок сможет снять их и переместить в инвентарь, но не надеть обратно.",
+            "disable-in-pvp-mode-items:", "- ELYTRA", "- DIAMOND_CHESTPLATE"})
+    @Key("disable-in-pvp-mode-items")
+    private List<String> disableInPvpModeItems = Arrays.asList("ELYTRA");
+    @Ignore
+    private Set<String> disableInPvpModeItemsSet;
+
     @Comment("Убивать ли игрока если он вышел во время пвп?")
     @Key("kill-on-leave")
     private boolean killOnLeave = true;
@@ -176,6 +184,7 @@ public class Settings extends Configuration {
         this.disabledWorldsSet = disabledWorlds.stream().map(String::toLowerCase).collect(Collectors.toSet());
         this.blockedContainersSet = blockedContainers.stream().map(String::toUpperCase).collect(Collectors.toSet());
         this.blockedBlocksSet = blockedBlocks.stream().map(String::toUpperCase).collect(Collectors.toSet());
+        this.disableInPvpModeItemsSet = disableInPvpModeItems.stream().map(String::toUpperCase).collect(Collectors.toSet());
     }
 
     public String getConfigVersion() {
@@ -248,6 +257,10 @@ public class Settings extends Configuration {
 
     public BlockedBlocksNotifications getBlockedBlocksNotifications() {
         return blockedBlocksNotifications;
+    }
+
+    public Set<String> getDisableInPvpModeItems() {
+        return disableInPvpModeItemsSet;
     }
 
     public List<String> getCommandsOnPowerupsDisable() {
@@ -350,6 +363,7 @@ public class Settings extends Configuration {
                 ", blockedContainers=" + blockedContainers +
                 ", blockedBlocks=" + blockedBlocks +
                 ", blockedBlocksNotifications=" + blockedBlocksNotifications +
+                ", disableInPvpModeItems=" + disableInPvpModeItems +
                 ", killOnLeave=" + killOnLeave +
                 ", killOnKick=" + killOnKick +
                 ", runCommandsOnKick=" + runCommandsOnKick +

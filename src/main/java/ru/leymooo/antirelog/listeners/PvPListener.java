@@ -11,8 +11,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.*;
+import org.bukkit.event.inventory.InventoryAction;
+import org.bukkit.event.inventory.InventoryClickEvent;
+import org.bukkit.event.inventory.InventoryDragEvent;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.event.player.*;
 import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.metadata.MetadataValue;
 import org.bukkit.potion.PotionEffect;
@@ -129,6 +134,197 @@ public class PvPListener implements Listener {
         if (notifications.isTitleMessage()) {
             sendBlockedTitle(event.getPlayer());
         }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryClick(InventoryClickEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) {
+            return;
+        }
+        Player player = (Player) event.getWhoClicked();
+        if (!pvpManager.isInPvP(player)) {
+            return;
+        }
+        Set<String> blocked = settings.getDisableInPvpModeItems();
+        if (blocked.isEmpty()) {
+            return;
+        }
+        if (isEquipAction(event, blocked)) {
+            event.setCancelled(true);
+            String message = Utils.color(messages.getEquipDisabledInPvp());
+            if (!message.isEmpty()) {
+                player.sendMessage(message);
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onInventoryDrag(InventoryDragEvent event) {
+        if (!(event.getWhoClicked() instanceof Player)) {
+            return;
+        }
+        Player player = (Player) event.getWhoClicked();
+        if (!pvpManager.isInPvP(player)) {
+            return;
+        }
+        Set<String> blocked = settings.getDisableInPvpModeItems();
+        if (blocked.isEmpty()) {
+            return;
+        }
+        for (int slot : event.getRawSlots()) {
+            if (isArmorSlot(slot, event.getView().getTopInventory().getType())) {
+                ItemStack dragged = event.getOldCursor();
+                if (dragged != null && blocked.contains(dragged.getType().name())) {
+                    event.setCancelled(true);
+                    String message = Utils.color(messages.getEquipDisabledInPvp());
+                    if (!message.isEmpty()) {
+                        player.sendMessage(message);
+                    }
+                    return;
+                }
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onPlayerSwapHandItems(PlayerSwapHandItemsEvent event) {
+        Player player = event.getPlayer();
+        if (!pvpManager.isInPvP(player)) {
+            return;
+        }
+        Set<String> blocked = settings.getDisableInPvpModeItems();
+        if (blocked.isEmpty()) {
+            return;
+        }
+        ItemStack offHand = event.getOffHandItem();
+        ItemStack mainHand = event.getMainHandItem();
+        if ((offHand != null && blocked.contains(offHand.getType().name()))
+                || (mainHand != null && blocked.contains(mainHand.getType().name()))) {
+            return;
+        }
+    }
+
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onPlayerInteractEquip(PlayerInteractEvent event) {
+        if (event.getAction() != Action.RIGHT_CLICK_AIR && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+            return;
+        }
+        Player player = event.getPlayer();
+        if (!pvpManager.isInPvP(player)) {
+            return;
+        }
+        Set<String> blocked = settings.getDisableInPvpModeItems();
+        if (blocked.isEmpty()) {
+            return;
+        }
+        ItemStack item = event.getItem();
+        if (item == null) {
+            return;
+        }
+        if (!blocked.contains(item.getType().name())) {
+            return;
+        }
+        if (isArmorItem(item.getType())) {
+            event.setCancelled(true);
+            String message = Utils.color(messages.getEquipDisabledInPvp());
+            if (!message.isEmpty()) {
+                player.sendMessage(message);
+            }
+        }
+    }
+
+    private boolean isEquipAction(InventoryClickEvent event, Set<String> blocked) {
+        int rawSlot = event.getRawSlot();
+        boolean isArmorSlot = isArmorSlot(rawSlot, event.getView().getTopInventory().getType());
+        InventoryAction action = event.getAction();
+
+        if (isArmorSlot) {
+            ItemStack cursor = event.getCursor();
+            if (cursor != null && blocked.contains(cursor.getType().name())) {
+                if (action == InventoryAction.PLACE_ALL
+                        || action == InventoryAction.PLACE_ONE
+                        || action == InventoryAction.PLACE_SOME
+                        || action == InventoryAction.SWAP_WITH_CURSOR) {
+                    return true;
+                }
+            }
+            if (event.getClick().isKeyboardClick()) {
+                int hotbarSlot = event.getHotbarButton();
+                if (hotbarSlot >= 0) {
+                    ItemStack hotbarItem = event.getWhoClicked().getInventory().getItem(hotbarSlot);
+                    if (hotbarItem != null && blocked.contains(hotbarItem.getType().name())) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (event.isShiftClick()) {
+            ItemStack currentItem = event.getCurrentItem();
+            if (currentItem != null && blocked.contains(currentItem.getType().name())) {
+                if (!isArmorSlot && isArmorItem(currentItem.getType())) {
+                    if (getArmorSlotForItem(currentItem.getType(), (Player) event.getWhoClicked()) != -1) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        if (!isArmorSlot && event.getClick().isKeyboardClick()) {
+            int hotbarSlot = event.getHotbarButton();
+            if (hotbarSlot >= 0) {
+                if (isArmorSlot(rawSlot, event.getView().getTopInventory().getType())) {
+                    ItemStack hotbarItem = event.getWhoClicked().getInventory().getItem(hotbarSlot);
+                    if (hotbarItem != null && blocked.contains(hotbarItem.getType().name())) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isArmorSlot(int rawSlot, InventoryType topType) {
+        if (topType == InventoryType.CRAFTING || topType == InventoryType.PLAYER) {
+            return rawSlot >= 5 && rawSlot <= 8;
+        }
+        return false;
+    }
+
+    private boolean isArmorItem(Material material) {
+        String name = material.name();
+        return name.endsWith("_HELMET")
+                || name.endsWith("_CHESTPLATE")
+                || name.endsWith("_LEGGINGS")
+                || name.endsWith("_BOOTS")
+                || material == Material.ELYTRA
+                || name.equals("CARVED_PUMPKIN")
+                || name.endsWith("_HEAD")
+                || name.endsWith("_SKULL");
+    }
+
+    private int getArmorSlotForItem(Material material, Player player) {
+        String name = material.name();
+        if ((name.endsWith("_HELMET") || name.equals("CARVED_PUMPKIN") || name.endsWith("_HEAD") || name.endsWith("_SKULL"))
+                && isEmpty(player.getInventory().getHelmet())) {
+            return 5;
+        }
+        if ((name.endsWith("_CHESTPLATE") || material == Material.ELYTRA)
+                && isEmpty(player.getInventory().getChestplate())) {
+            return 6;
+        }
+        if (name.endsWith("_LEGGINGS") && isEmpty(player.getInventory().getLeggings())) {
+            return 7;
+        }
+        if (name.endsWith("_BOOTS") && isEmpty(player.getInventory().getBoots())) {
+            return 8;
+        }
+        return -1;
+    }
+
+    private boolean isEmpty(ItemStack item) {
+        return item == null || item.getType() == Material.AIR;
     }
 
     private void sendBlockedTitle(Player player) {
