@@ -49,12 +49,21 @@ public class PvPListener implements Listener {
     private final Messages messages;
     private final Settings settings;
     private final Map<Player, AtomicInteger> allowedTeleports = new HashMap<>();
+    private final boolean abstractMenusEnabled;
+    private Class<?> abstractMenusMenuClass;
 
     public PvPListener(Antirelog plugin, PvPManager pvpManager, Settings settings) {
         this.plugin = plugin;
         this.pvpManager = pvpManager;
         this.settings = settings;
         this.messages = settings.getMessages();
+        boolean amEnabled = false;
+        try {
+            abstractMenusMenuClass = Class.forName("ru.abstractmenus.api.inventory.Menu");
+            amEnabled = Bukkit.getPluginManager().isPluginEnabled("AbstractMenus");
+        } catch (ClassNotFoundException ignored) {
+        }
+        this.abstractMenusEnabled = amEnabled;
         plugin.getServer().getScheduler().runTaskTimer(plugin, () -> {
             allowedTeleports.values().forEach(ai -> ai.set(ai.get() + 1));
             allowedTeleports.values().removeIf(ai -> ai.get() >= 5);
@@ -433,17 +442,22 @@ public class PvPListener implements Listener {
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void onInventoryOpen(org.bukkit.event.inventory.InventoryOpenEvent event) {
-        if (!(event.getPlayer() instanceof Player)) return;
+        if (!(event.getPlayer() instanceof Player))
+            return;
         Player player = (Player) event.getPlayer();
 
-        if (!pvpManager.isInPvP(player)) return;
+        if (!pvpManager.isInPvP(player))
+            return;
 
-        if (event.getInventory().getType() != InventoryType.PLAYER
-                && event.getInventory().getType() != InventoryType.CRAFTING) {
+        if (!abstractMenusEnabled)
+            return;
+
+        org.bukkit.inventory.InventoryHolder holder = event.getInventory().getHolder();
+        if (holder != null && abstractMenusMenuClass != null && abstractMenusMenuClass.isInstance(holder)) {
             event.setCancelled(true);
-            String message = Utils.color(messages.getCommandsDisabled());
+            String message = Utils.color(messages.getMenuBlockedInPvp());
             if (!message.isEmpty()) {
-                player.sendMessage(Utils.replaceTime(message, pvpManager.getTimeRemainingInPvP(player)));
+                player.sendMessage(message);
             }
         }
     }

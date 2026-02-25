@@ -62,6 +62,8 @@ public class Messages implements ConfigurationSection {
     private String potionDisabledInPvpActionbar = "&c⚠ &fЭто зелье заблокировано в &ePVP";
     @Key("equip-disabled-in-pvp")
     private String equipDisabledInPvp = "&c&lВы не можете надеть этот предмет во время &e&lPVP&c&l!";
+    @Key("menu-blocked-in-pvp")
+    private String menuBlockedInPvp = "&c&lВы не можете открыть меню во время &e&lPVP&c&l!";
 
     public String getPvpStarted() {
         return pvpStarted;
@@ -170,8 +172,13 @@ public class Messages implements ConfigurationSection {
     public String getPotionDisabledInPvpActionbar() {
         return potionDisabledInPvpActionbar;
     }
+
     public String getEquipDisabledInPvp() {
         return equipDisabledInPvp;
+    }
+
+    public String getMenuBlockedInPvp() {
+        return menuBlockedInPvp;
     }
 
     @Override
@@ -201,6 +208,7 @@ public class Messages implements ConfigurationSection {
                 ", potionCooldown='" + potionCooldown + '\'' +
                 ", potionDisabledInPvp='" + potionDisabledInPvp + '\'' +
                 ", equipDisabledInPvp='" + equipDisabledInPvp + '\'' +
+                ", menuBlockedInPvp='" + menuBlockedInPvp + '\'' +
                 '}';
     }
 }
