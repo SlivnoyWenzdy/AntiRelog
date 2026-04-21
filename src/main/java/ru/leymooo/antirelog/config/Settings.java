@@ -10,7 +10,7 @@ public class Settings extends Configuration {
 
     @Final
     @Key("config-version")
-    private String configVersion = "2.3";
+    private String configVersion = "2.4";
     private Messages messages = new Messages();
 
     @Comment("Кулдавн для обычных золотых яблок во время пвп.")
@@ -57,7 +57,15 @@ public class Settings extends Configuration {
     @Key("experience-bottle-cooldown")
     private double experienceBottleCooldown = 0;
 
-    @Comment({"Настройки уведомлений для каждого типа кулдауна.", "chat-message - сообщение в чат когда кулдаун активен", "actionbar-message - сообщение в actionbar при выборе предмета на кулдауне", "blocked-message - сообщение когда предмет заблокирован в PvP"})
+    @Key("ranged-miss-cooldown")
+    private double rangedMissCooldown = 2.0;
+
+    @Key("ranged-hit-cooldown")
+    private double rangedHitCooldown = 4.0;
+
+    @Key("ranged-cooldown-only-in-pvp")
+    private boolean rangedCooldownOnlyInPvp = false;
+
     @Key("cooldown-notifications")
     private CooldownNotifications cooldownNotifications = new CooldownNotifications();
 
@@ -335,6 +343,18 @@ public class Settings extends Configuration {
         return experienceBottleCooldown;
     }
 
+    public double getRangedMissCooldown() {
+        return rangedMissCooldown;
+    }
+
+    public double getRangedHitCooldown() {
+        return rangedHitCooldown;
+    }
+
+    public boolean isRangedCooldownOnlyInPvp() {
+        return rangedCooldownOnlyInPvp;
+    }
+
     public CooldownNotifications getCooldownNotifications() {
         return cooldownNotifications;
     }
@@ -355,6 +375,9 @@ public class Settings extends Configuration {
                 ", strengthPotionCooldown=" + strengthPotionCooldown +
                 ", speedPotionCooldown=" + speedPotionCooldown +
                 ", experienceBottleCooldown=" + experienceBottleCooldown +
+                ", rangedHitCooldown" + rangedHitCooldown +
+                ", rangedMissCooldown=" + rangedMissCooldown +
+                ", rangedCooldownOnlyInPvp=" + rangedCooldownOnlyInPvp +
                 ", cooldownNotifications=" + cooldownNotifications +
                 ", pvpTime=" + pvpTime +
                 ", disableCommandsInPvp=" + disableCommandsInPvp +

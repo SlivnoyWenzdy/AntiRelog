@@ -60,6 +60,8 @@ public class Messages implements ConfigurationSection {
     private String itemDisabledInPvpActionbar = "&c⚠ &fЭтот предмет заблокирован в &ePVP";
     @Key("potion-disabled-in-pvp-actionbar")
     private String potionDisabledInPvpActionbar = "&c⚠ &fЭто зелье заблокировано в &ePVP";
+    @Key("ranged-cooldown-actionbar")
+    private String rangedCooldownActionbar = "&c⚠ &fПерезарядка: &c%time% &fсек.";
     @Key("equip-disabled-in-pvp")
     private String equipDisabledInPvp = "&c&lВы не можете надеть этот предмет во время &e&lPVP&c&l!";
     @Key("menu-blocked-in-pvp")
@@ -173,6 +175,10 @@ public class Messages implements ConfigurationSection {
         return potionDisabledInPvpActionbar;
     }
 
+    public String getRangedCooldownActionbar() {
+        return rangedCooldownActionbar;
+    }
+
     public String getEquipDisabledInPvp() {
         return equipDisabledInPvp;
     }
@@ -195,6 +201,7 @@ public class Messages implements ConfigurationSection {
                 ", inPvpActionbar='" + inPvpActionbar + '\'' +
                 ", pvpLeaved='" + pvpLeaved + '\'' +
                 ", commandsDisabled='" + commandsDisabled + '\'' +
+                ", rangedCooldownActionbar='" + rangedCooldownActionbar + '\'' +
                 ", itemCooldown='" + itemCooldown + '\'' +
                 ", itemDisabledInPvp='" + itemDisabledInPvp + '\'' +
                 ", totemCooldown='" + totemCooldown + '\'' +

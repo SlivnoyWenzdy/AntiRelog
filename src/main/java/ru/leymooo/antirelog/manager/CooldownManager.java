@@ -31,6 +31,7 @@ public class CooldownManager {
     private final Table<Player, CooldownType, ScheduledFuture> futures = HashBasedTable.create();
     private final Table<Player, CooldownType, Boolean> infiniteCooldowns = HashBasedTable.create();
     private final Table<Player, CooldownType, Boolean> pvpCooldowns = HashBasedTable.create();
+    private final Table<Player, CooldownType, Long> appliedDurations = HashBasedTable.create();
 
     public CooldownManager(Antirelog plugin, Settings settings) {
         this.plugin = plugin;
@@ -65,6 +66,7 @@ public class CooldownManager {
         cooldowns.remove(player, type);
         infiniteCooldowns.remove(player, type);
         pvpCooldowns.remove(player, type);
+        appliedDurations.remove(player, type);
         removeItemCooldown(player, type);
     }
 
@@ -119,6 +121,17 @@ public class CooldownManager {
         ProtocolLibUtils.sendPacket(packetContainer, player);
     }
 
+    public void addCooldownWithDuration(Player player, CooldownType type, boolean inPvP, long durationMs) {
+        cooldowns.put(player, type, System.currentTimeMillis());
+        pvpCooldowns.put(player, type, inPvP);
+        appliedDurations.put(player, type, durationMs);
+    }
+
+    public long getAppliedDuration(Player player, CooldownType type, long defaultMs) {
+        Long d = appliedDurations.get(player, type);
+        return d != null ? d : defaultMs;
+    }
+
     public void enteredToPvp(Player player) {
         for (CooldownType cooldownType : CooldownType.values) {
             if (hasInfiniteCooldown(player, cooldownType)) {
@@ -129,12 +142,12 @@ public class CooldownManager {
             if (cooldownMs == 0) {
                 continue;
             }
-            if (cooldownMs > 0 && hasCooldown(player, cooldownType, cooldownMs)) {
+            if (cooldownMs > 0 && hasCooldown(player, cooldownType, getAppliedDuration(player, cooldownType, cooldownMs))) {
                 if (!wasCooldownSetInPvP(player, cooldownType)) {
                     removeCooldown(player, cooldownType);
                     continue;
                 }
-                addItemCooldown(player, cooldownType, getRemaining(player, cooldownType, cooldownMs));
+                addItemCooldown(player, cooldownType, getRemaining(player, cooldownType, getAppliedDuration(player, cooldownType, cooldownMs)));
             }
             if (cooldownMs < 0) {
                 addItemCooldown(player, cooldownType, INFINITE_VISUAL_DURATION);
@@ -148,7 +161,7 @@ public class CooldownManager {
                 continue;
             }
             long cooldownMs = cooldownType.getCooldownMs(settings);
-            if (cooldownMs > 0 && hasCooldown(player, cooldownType, cooldownMs)) {
+            if (cooldownMs > 0 && hasCooldown(player, cooldownType, getAppliedDuration(player, cooldownType, cooldownMs))) {
                 removeItemCooldown(player, cooldownType);
             }
         }
@@ -184,6 +197,7 @@ public class CooldownManager {
         cooldowns.row(player).clear();
         infiniteCooldowns.row(player).clear();
         pvpCooldowns.row(player).clear();
+        appliedDurations.row(player).clear();
         futures.row(player).forEach((ignore, future) -> future.cancel(false));
         futures.row(player).clear();
     }
@@ -197,6 +211,7 @@ public class CooldownManager {
         cooldowns.clear();
         infiniteCooldowns.clear();
         pvpCooldowns.clear();
+        appliedDurations.clear();
     }
 
     public void shutdown() {
@@ -221,7 +236,10 @@ public class CooldownManager {
         REGENERATION_POTION(Material.POTION, s -> s.getRegenerationPotionCooldown() * 1000L, CooldownNotifications::getRegenerationPotion),
         STRENGTH_POTION(Material.POTION, s -> s.getStrengthPotionCooldown() * 1000L, CooldownNotifications::getStrengthPotion),
         SPEED_POTION(Material.POTION, s -> s.getSpeedPotionCooldown() * 1000L, CooldownNotifications::getSpeedPotion),
-        EXPERIENCE_BOTTLE(Material.EXPERIENCE_BOTTLE, s -> (long) (s.getExperienceBottleCooldown() * 1000), CooldownNotifications::getExperienceBottle);
+        EXPERIENCE_BOTTLE(Material.EXPERIENCE_BOTTLE, s -> (long) (s.getExperienceBottleCooldown() * 1000), CooldownNotifications::getExperienceBottle),
+        BOW(Material.BOW, s -> (long) (s.getRangedHitCooldown() * 1000L), CooldownNotifications::getRangedWeapon),
+        TRIDENT(Material.matchMaterial("TRIDENT") != null ? Material.matchMaterial("TRIDENT") : Material.BOW, s -> (long) (s.getRangedHitCooldown() * 1000L), CooldownNotifications::getRangedWeapon),
+        CROSSBOW(Material.matchMaterial("CROSSBOW") != null ? Material.matchMaterial("CROSSBOW") : Material.BOW, s -> (long) (s.getRangedHitCooldown() * 1000L), CooldownNotifications::getRangedWeapon);
 
         public static CooldownType[] values = values();
 

@@ -147,6 +147,7 @@ public class CooldownListener implements Listener {
             }
             fireCooldownEvent(event.getPlayer(), type, Action.ITEM_USED, cooldownMs);
             cooldownManager.addCooldown(event.getPlayer(), type, pvpManager.isInPvP(event.getPlayer()));
+            addItemCooldownIfNeeded(event.getPlayer(), type);
         }
     }
 
@@ -164,8 +165,56 @@ public class CooldownListener implements Listener {
 
         if (e.getEntityType() == EntityType.ENDER_PEARL && e.getEntity().getShooter() instanceof Player) {
             handleEnderPearl(e, (Player) e.getEntity().getShooter());
+            return;
+        }
+
+        if (e.getEntity().getShooter() instanceof Player) {
+            Player shooter = (Player) e.getEntity().getShooter();
+            if (VersionUtils.isVersion(13) && e.getEntityType() == EntityType.TRIDENT) {
+                handleTridentLaunch(e, shooter);
+                return;
+            }
+            if (e.getEntityType() == EntityType.ARROW || e.getEntityType() == EntityType.SPECTRAL_ARROW) {
+                handleArrowLaunch(e, shooter);
+                return;
+            }
+            if (VersionUtils.isVersion(14)) {
+                EntityType fireworkType = EntityType.valueOf("FIREWORK");
+                if (fireworkType != null && e.getEntityType() == fireworkType) {
+                    handleCrossbowFireworkLaunch(e, shooter);
+                }
+            }
         }
     }
+
+    private void handleArrowLaunch(ProjectileLaunchEvent e, Player player) {
+        if (pvpManager.isBypassed(player)) return;
+
+        CooldownType type = CooldownType.BOW;
+
+        if (VersionUtils.isVersion(14)) {
+            Material crossbowMat = Material.matchMaterial("CROSSBOW");
+            if (crossbowMat != null) {
+                ItemStack mainHand = player.getInventory().getItemInMainHand();
+                ItemStack offHand  = player.getInventory().getItemInOffHand();
+                if (mainHand.getType() == crossbowMat || offHand.getType() == crossbowMat) {
+                    type = CooldownType.CROSSBOW;
+                }
+            }
+        }
+
+        if (checkCooldown(player, type, (long) (settings.getRangedHitCooldown() * 1000L))) {
+            e.setCancelled(true);
+        }
+    }
+
+    private void handleCrossbowFireworkLaunch(ProjectileLaunchEvent e, Player player) {
+        if (pvpManager.isBypassed(player)) return;
+        if (checkCooldown(player, CooldownType.CROSSBOW, (long) (settings.getRangedHitCooldown() * 1000L))) {
+            e.setCancelled(true);
+        }
+    }
+
     private CooldownType matchBasePotionType(PotionData data) {
         String typeName = data.getType().name();
         if (typeName.equals("INSTANT_HEAL") || typeName.equals("HEALING")) {
@@ -275,10 +324,9 @@ public class CooldownListener implements Listener {
             }
             fireCooldownEvent(player, cooldownType, Action.ITEM_USED, cooldownMs);
             cooldownManager.addCooldown(player, cooldownType, pvpManager.isInPvP(player));
+            addItemCooldownIfNeeded(player, cooldownType);
         }
     }
-
-
 
     private void handleExperienceBottle(ProjectileLaunchEvent e, Player player) {
         if (pvpManager.isBypassed(player)) {
@@ -320,6 +368,13 @@ public class CooldownListener implements Listener {
             fireCooldownEvent(player, CooldownType.ENDER_PEARL, Action.ITEM_USED, cooldownMs);
             cooldownManager.addCooldown(player, CooldownType.ENDER_PEARL, pvpManager.isInPvP(player));
             addItemCooldownIfNeeded(player, CooldownType.ENDER_PEARL);
+        }
+    }
+
+    private void handleTridentLaunch(ProjectileLaunchEvent e, Player player) {
+        if (pvpManager.isBypassed(player)) return;
+        if (checkCooldown(player, CooldownType.TRIDENT, (long) (settings.getRangedHitCooldown() * 1000L))) {
+            e.setCancelled(true);
         }
     }
 
@@ -386,13 +441,23 @@ public class CooldownListener implements Listener {
             cooldownType = CooldownType.FIREWORK;
         } else if (item.getType() == Material.EXPERIENCE_BOTTLE) {
             cooldownType = CooldownType.EXPERIENCE_BOTTLE;
+        } else if (item.getType() == Material.BOW) {
+            cooldownType = CooldownType.BOW;
+        } else if (VersionUtils.isVersion(13) && item.getType() == Material.matchMaterial("TRIDENT")) {
+            cooldownType = CooldownType.TRIDENT;
+        } else if (VersionUtils.isVersion(14) && item.getType() == Material.matchMaterial("CROSSBOW")) {
+            cooldownType = CooldownType.CROSSBOW;
         }
 
         if (cooldownType == null) {
             return;
         }
 
-        long cooldownMs = cooldownType.getCooldownMs(settings);
+        boolean isRanged = cooldownType == CooldownType.BOW || cooldownType == CooldownType.TRIDENT || cooldownType == CooldownType.CROSSBOW;
+        long cooldownMs = isRanged
+                ? (long) (settings.getRangedHitCooldown() * 1000L)
+                : cooldownType.getCooldownMs(settings);
+
         if (cooldownMs == 0) {
             return;
         }
@@ -409,11 +474,15 @@ public class CooldownListener implements Listener {
             return;
         }
 
-        if (cooldownManager.hasCooldown(player, cooldownType, cooldownMs) && cooldownManager.wasCooldownSetInPvP(player, cooldownType)) {
+        boolean forceCheck = isRanged && !settings.isRangedCooldownOnlyInPvp();
+
+        if (cooldownManager.hasCooldown(player, cooldownType, cooldownMs) && (forceCheck || cooldownManager.wasCooldownSetInPvP(player, cooldownType))) {
             if (notification.isActionbarMessage()) {
                 long remaining = cooldownManager.getRemaining(player, cooldownType, cooldownMs);
                 int remainingInt = (int) TimeUnit.MILLISECONDS.toSeconds(remaining);
-                String message = settings.getMessages().getItemCooldownActionbar();
+                String message = isRanged
+                        ? settings.getMessages().getRangedCooldownActionbar()
+                        : settings.getMessages().getItemCooldownActionbar();
                 if (!message.isEmpty()) {
                     ActionBar.sendAction(player, Utils.color(Utils.replaceTime(message, remainingInt)));
                 }
@@ -421,10 +490,63 @@ public class CooldownListener implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
+    public void onShoot(org.bukkit.event.entity.EntityShootBowEvent event) {
+        if (!(event.getEntity() instanceof Player)) return;
+        Player player = (Player) event.getEntity();
+        if (pvpManager.isBypassed(player)) return;
+
+        boolean isCrossbow = event.getBow() != null
+                && Material.matchMaterial("CROSSBOW") != null
+                && event.getBow().getType() == Material.matchMaterial("CROSSBOW");
+
+        long cooldownMs = (long) (settings.getRangedHitCooldown() * 1000L);
+
+        if (isCrossbow) {
+            if (checkCooldown(player, CooldownType.CROSSBOW, cooldownMs)) {
+                event.setCancelled(true);
+            }
+            return;
+        }
+
+        if (checkCooldown(player, CooldownType.BOW, cooldownMs)) {
+            event.setCancelled(true);
+        }
+    }
+
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
         if (!event.hasItem()) return;
         if (pvpManager.isBypassed(event.getPlayer())) return;
+
+        org.bukkit.event.block.Action click = event.getAction();
+        if (click == org.bukkit.event.block.Action.RIGHT_CLICK_AIR || click == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
+            Material itemType = event.getItem().getType();
+            long cooldownMs = (long) (settings.getRangedHitCooldown() * 1000L);
+
+            if (itemType == Material.BOW) {
+                if (checkCooldown(event.getPlayer(), CooldownType.BOW, cooldownMs)) {
+                    event.setCancelled(true);
+                }
+                return;
+            }
+
+            Material tridentMat = Material.matchMaterial("TRIDENT");
+            if (tridentMat != null && itemType == tridentMat) {
+                if (checkCooldown(event.getPlayer(), CooldownType.TRIDENT, cooldownMs)) {
+                    event.setCancelled(true);
+                }
+                return;
+            }
+
+            Material crossbowMat = Material.matchMaterial("CROSSBOW");
+            if (crossbowMat != null && itemType == crossbowMat) {
+                if (checkCooldown(event.getPlayer(), CooldownType.CROSSBOW, cooldownMs)) {
+                    event.setCancelled(true);
+                }
+                return;
+            }
+        }
 
         Material itemType = event.getItem().getType();
 
@@ -465,6 +587,42 @@ public class CooldownListener implements Listener {
         }
     }
 
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    public void onProjectileHit(org.bukkit.event.entity.ProjectileHitEvent event) {
+        if (!(event.getEntity().getShooter() instanceof Player)) return;
+        Player shooter = (Player) event.getEntity().getShooter();
+        if (pvpManager.isBypassed(shooter)) return;
+
+        org.bukkit.entity.Projectile proj = event.getEntity();
+        boolean isRanged = false;
+
+        if (proj instanceof org.bukkit.entity.Arrow || proj instanceof org.bukkit.entity.SpectralArrow) {
+            isRanged = true;
+        } else if (VersionUtils.isVersion(13) && proj instanceof org.bukkit.entity.Trident) {
+            isRanged = true;
+        } else if (VersionUtils.isVersion(14) && proj instanceof org.bukkit.entity.Firework) {
+            isRanged = true;
+        }
+
+        if (!isRanged) return;
+
+        boolean hitPlayer = event.getHitEntity() instanceof Player && event.getHitEntity() != shooter;
+        double cooldown = hitPlayer ? settings.getRangedHitCooldown() : settings.getRangedMissCooldown();
+
+        if (cooldown > 0) {
+            applyRangedCooldown(shooter, (long) (cooldown * 1000L));
+        }
+    }
+
+    private void applyRangedCooldown(Player player, long durationMs) {
+        for (CooldownType type : new CooldownType[]{CooldownType.BOW, CooldownType.TRIDENT, CooldownType.CROSSBOW}) {
+            if (type.getMaterial() == null) continue;
+            cooldownManager.addCooldownWithDuration(player, type, pvpManager.isInPvP(player), durationMs);
+            cooldownManager.addItemCooldown(player, type, durationMs);
+            fireCooldownEvent(player, type, Action.ITEM_USED, durationMs);
+        }
+    }
+
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
         cooldownManager.remove(event.getPlayer());
@@ -494,63 +652,6 @@ public class CooldownListener implements Listener {
     @EventHandler
     public void onPvpStop(PvpStoppedEvent event) {
         cooldownManager.removedFromPvp(event.getPlayer());
-    }
-
-    private CooldownType getPotionCooldownType(ItemStack item) {
-        if (item == null) {
-            return null;
-        }
-        Material type = item.getType();
-        if (type != Material.POTION && type != Material.SPLASH_POTION && type != Material.LINGERING_POTION) {
-            return null;
-        }
-        if (!(item.getItemMeta() instanceof PotionMeta)) {
-            return null;
-        }
-        PotionMeta meta = (PotionMeta) item.getItemMeta();
-        return matchPotionType(meta);
-    }
-
-    private CooldownType getSplashPotionCooldownType(ThrownPotion thrownPotion) {
-        ItemStack item = thrownPotion.getItem();
-        if (!(item.getItemMeta() instanceof PotionMeta)) {
-            return null;
-        }
-        PotionMeta meta = (PotionMeta) item.getItemMeta();
-        return matchPotionType(meta);
-    }
-
-    private CooldownType matchPotionType(PotionMeta meta) {
-        try {
-            PotionData data = meta.getBasePotionData();
-            if (data != null) {
-                String typeName = data.getType().name();
-                if (typeName.equals("INSTANT_HEAL") || typeName.equals("HEALING")) {
-                    return CooldownType.HEALING_POTION;
-                }
-                if (typeName.equals("REGEN") || typeName.equals("REGENERATION")) {
-                    return CooldownType.REGENERATION_POTION;
-                }
-                if (typeName.equals("STRENGTH") || typeName.equals("INCREASE_DAMAGE")) {
-                    return CooldownType.STRENGTH_POTION;
-                }
-                if (typeName.equals("SPEED") || typeName.equals("SWIFTNESS")) {
-                    return CooldownType.SPEED_POTION;
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        if (meta.hasCustomEffects()) {
-            for (PotionEffect effect : meta.getCustomEffects()) {
-                CooldownType type = matchEffectType(effect.getType());
-                if (type != null) {
-                    return type;
-                }
-            }
-        }
-
-        return null;
     }
 
     private CooldownType matchEffectType(PotionEffectType effectType) {
@@ -630,40 +731,55 @@ public class CooldownListener implements Listener {
     }
 
     private boolean checkCooldown(Player player, CooldownType cooldownType, long cooldownMs) {
-        boolean cooldownActive = !pvpManager.isPvPModeEnabled() || pvpManager.isInPvP(player);
-        if (cooldownActive && cooldownManager.hasCooldown(player, cooldownType, cooldownMs) && cooldownManager.wasCooldownSetInPvP(player, cooldownType)) {
-            long remaining = cooldownManager.getRemaining(player, cooldownType, cooldownMs);
-            int remainingInt = (int) TimeUnit.MILLISECONDS.toSeconds(remaining);
-            fireCooldownEvent(player, cooldownType, Action.COOLDOWN_ACTIVE, remaining);
-            CooldownNotificationEntry notification = cooldownType.getNotification(settings);
-            if (notification.isChatMessage()) {
-                String message = cooldownType == CooldownType.TOTEM ? settings.getMessages().getTotemCooldown() :
-                        settings.getMessages().getItemCooldown();
-                if (!message.isEmpty()) {
-                    player.sendMessage(Utils.color(Utils.replaceTime(message, remainingInt)));
-                }
-            }
-            return true;
+        boolean isRanged = cooldownType == CooldownType.BOW || cooldownType == CooldownType.TRIDENT || cooldownType == CooldownType.CROSSBOW;
+        boolean forceCheck = isRanged && !settings.isRangedCooldownOnlyInPvp();
+
+        boolean shouldCheckCooldowns = forceCheck || !pvpManager.isPvPModeEnabled() || pvpManager.isInPvP(player);
+        if (!shouldCheckCooldowns) {
+            return false;
         }
-        return false;
+
+        long effectiveCooldownMs = cooldownManager.getAppliedDuration(player, cooldownType, cooldownMs);
+
+        if (!cooldownManager.hasCooldown(player, cooldownType, effectiveCooldownMs)) {
+            return false;
+        }
+
+        if (!forceCheck && pvpManager.isPvPModeEnabled() && !cooldownManager.wasCooldownSetInPvP(player, cooldownType)) {
+            return false;
+        }
+
+        long remaining = cooldownManager.getRemaining(player, cooldownType, effectiveCooldownMs);
+        fireCooldownEvent(player, cooldownType, Action.COOLDOWN_ACTIVE, remaining);
+        return true;
     }
 
     private boolean checkPotionCooldown(Player player, CooldownType cooldownType, long cooldownMs) {
-        boolean cooldownActive = !pvpManager.isPvPModeEnabled() || pvpManager.isInPvP(player);
-        if (cooldownActive && cooldownManager.hasCooldown(player, cooldownType, cooldownMs) && cooldownManager.wasCooldownSetInPvP(player, cooldownType)) {
-            long remaining = cooldownManager.getRemaining(player, cooldownType, cooldownMs);
-            int remainingInt = (int) TimeUnit.MILLISECONDS.toSeconds(remaining);
-            fireCooldownEvent(player, cooldownType, Action.COOLDOWN_ACTIVE, remaining);
-            CooldownNotificationEntry notification = cooldownType.getNotification(settings);
-            if (notification.isChatMessage()) {
-                String message = settings.getMessages().getPotionCooldown();
-                if (!message.isEmpty()) {
-                    player.sendMessage(Utils.color(Utils.replaceTime(message, remainingInt)));
-                }
-            }
-            return true;
+        boolean shouldCheckCooldowns = !pvpManager.isPvPModeEnabled() || pvpManager.isInPvP(player);
+        if (!shouldCheckCooldowns) {
+            return false;
         }
-        return false;
+
+        if (!cooldownManager.hasCooldown(player, cooldownType, cooldownMs)) {
+            return false;
+        }
+
+        if (pvpManager.isPvPModeEnabled() && !cooldownManager.wasCooldownSetInPvP(player, cooldownType)) {
+            return false;
+        }
+
+        long remaining = cooldownManager.getRemaining(player, cooldownType, cooldownMs);
+        int remainingInt = (int) TimeUnit.MILLISECONDS.toSeconds(remaining);
+        fireCooldownEvent(player, cooldownType, Action.COOLDOWN_ACTIVE, remaining);
+
+        CooldownNotificationEntry notification = cooldownType.getNotification(settings);
+        if (notification.isChatMessage()) {
+            String message = settings.getMessages().getPotionCooldown();
+            if (!message.isEmpty()) {
+                player.sendMessage(Utils.color(Utils.replaceTime(message, remainingInt)));
+            }
+        }
+        return true;
     }
 
     private boolean checkPotionOrItemCooldown(Player player, CooldownType cooldownType, long cooldownMs) {

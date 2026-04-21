@@ -53,6 +53,9 @@ public class CooldownNotifications implements ConfigurationSection {
     @Key("experience-bottle")
     private CooldownNotificationEntry experienceBottle = new CooldownNotificationEntry(true, true, true);
 
+    @Key("ranged-weapon")
+    private CooldownNotificationEntry rangedWeapon = new CooldownNotificationEntry(true, true, true);
+
     public CooldownNotificationEntry getGoldenApple() {
         return goldenApple;
     }
@@ -97,12 +100,17 @@ public class CooldownNotifications implements ConfigurationSection {
         return experienceBottle;
     }
 
+    public CooldownNotificationEntry getRangedWeapon() {
+        return rangedWeapon;
+    }
+
     @Override
     public String toString() {
         return "CooldownNotifications{" +
                 "goldenApple=" + goldenApple +
                 ", enchantedGoldenApple=" + enchantedGoldenApple +
                 ", enderPearl=" + enderPearl +
+                ", rangedWeapon=" + rangedWeapon +
                 ", chorus=" + chorus +
                 ", firework=" + firework +
                 ", totem=" + totem +
