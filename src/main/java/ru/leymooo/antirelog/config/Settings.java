@@ -10,7 +10,7 @@ public class Settings extends Configuration {
 
     @Final
     @Key("config-version")
-    private String configVersion = "2.4";
+    private String configVersion = "2.5";
     private Messages messages = new Messages();
 
     @Comment("Кулдавн для обычных золотых яблок во время пвп.")
@@ -65,6 +65,9 @@ public class Settings extends Configuration {
 
     @Key("ranged-cooldown-only-in-pvp")
     private boolean rangedCooldownOnlyInPvp = false;
+
+    @Key("ranged-cooldown-in-all-worlds")
+    private boolean rangedCooldownInAllWorlds = true;
 
     @Key("cooldown-notifications")
     private CooldownNotifications cooldownNotifications = new CooldownNotifications();
@@ -355,6 +358,10 @@ public class Settings extends Configuration {
         return rangedCooldownOnlyInPvp;
     }
 
+    public boolean isRangedCooldownInAllWorlds() {
+        return rangedCooldownInAllWorlds;
+    }
+
     public CooldownNotifications getCooldownNotifications() {
         return cooldownNotifications;
     }
@@ -378,6 +385,7 @@ public class Settings extends Configuration {
                 ", rangedHitCooldown" + rangedHitCooldown +
                 ", rangedMissCooldown=" + rangedMissCooldown +
                 ", rangedCooldownOnlyInPvp=" + rangedCooldownOnlyInPvp +
+                ", rangedCooldownInAllWorlds=" + rangedCooldownInAllWorlds +
                 ", cooldownNotifications=" + cooldownNotifications +
                 ", pvpTime=" + pvpTime +
                 ", disableCommandsInPvp=" + disableCommandsInPvp +

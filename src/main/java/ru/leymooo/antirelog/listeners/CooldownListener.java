@@ -188,7 +188,7 @@ public class CooldownListener implements Listener {
     }
 
     private void handleArrowLaunch(ProjectileLaunchEvent e, Player player) {
-        if (pvpManager.isBypassed(player)) return;
+        if (isRangedBypassed(player)) return;
 
         CooldownType type = CooldownType.BOW;
 
@@ -209,7 +209,7 @@ public class CooldownListener implements Listener {
     }
 
     private void handleCrossbowFireworkLaunch(ProjectileLaunchEvent e, Player player) {
-        if (pvpManager.isBypassed(player)) return;
+        if (isRangedBypassed(player)) return;
         if (checkCooldown(player, CooldownType.CROSSBOW, (long) (settings.getRangedHitCooldown() * 1000L))) {
             e.setCancelled(true);
         }
@@ -372,7 +372,7 @@ public class CooldownListener implements Listener {
     }
 
     private void handleTridentLaunch(ProjectileLaunchEvent e, Player player) {
-        if (pvpManager.isBypassed(player)) return;
+        if (isRangedBypassed(player)) return;
         if (checkCooldown(player, CooldownType.TRIDENT, (long) (settings.getRangedHitCooldown() * 1000L))) {
             e.setCancelled(true);
         }
@@ -494,7 +494,7 @@ public class CooldownListener implements Listener {
     public void onShoot(org.bukkit.event.entity.EntityShootBowEvent event) {
         if (!(event.getEntity() instanceof Player)) return;
         Player player = (Player) event.getEntity();
-        if (pvpManager.isBypassed(player)) return;
+        if (isRangedBypassed(player)) return;
 
         boolean isCrossbow = event.getBow() != null
                 && Material.matchMaterial("CROSSBOW") != null
@@ -517,36 +517,39 @@ public class CooldownListener implements Listener {
     @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
     public void onInteract(PlayerInteractEvent event) {
         if (!event.hasItem()) return;
-        if (pvpManager.isBypassed(event.getPlayer())) return;
 
         org.bukkit.event.block.Action click = event.getAction();
         if (click == org.bukkit.event.block.Action.RIGHT_CLICK_AIR || click == org.bukkit.event.block.Action.RIGHT_CLICK_BLOCK) {
-            Material itemType = event.getItem().getType();
-            long cooldownMs = (long) (settings.getRangedHitCooldown() * 1000L);
+            if (!isRangedBypassed(event.getPlayer())) {
+                Material itemType = event.getItem().getType();
+                long cooldownMs = (long) (settings.getRangedHitCooldown() * 1000L);
 
-            if (itemType == Material.BOW) {
-                if (checkCooldown(event.getPlayer(), CooldownType.BOW, cooldownMs)) {
-                    event.setCancelled(true);
+                if (itemType == Material.BOW) {
+                    if (checkCooldown(event.getPlayer(), CooldownType.BOW, cooldownMs)) {
+                        event.setCancelled(true);
+                    }
+                    return;
                 }
-                return;
-            }
 
-            Material tridentMat = Material.matchMaterial("TRIDENT");
-            if (tridentMat != null && itemType == tridentMat) {
-                if (checkCooldown(event.getPlayer(), CooldownType.TRIDENT, cooldownMs)) {
-                    event.setCancelled(true);
+                Material tridentMat = Material.matchMaterial("TRIDENT");
+                if (tridentMat != null && itemType == tridentMat) {
+                    if (checkCooldown(event.getPlayer(), CooldownType.TRIDENT, cooldownMs)) {
+                        event.setCancelled(true);
+                    }
+                    return;
                 }
-                return;
-            }
 
-            Material crossbowMat = Material.matchMaterial("CROSSBOW");
-            if (crossbowMat != null && itemType == crossbowMat) {
-                if (checkCooldown(event.getPlayer(), CooldownType.CROSSBOW, cooldownMs)) {
-                    event.setCancelled(true);
+                Material crossbowMat = Material.matchMaterial("CROSSBOW");
+                if (crossbowMat != null && itemType == crossbowMat) {
+                    if (checkCooldown(event.getPlayer(), CooldownType.CROSSBOW, cooldownMs)) {
+                        event.setCancelled(true);
+                    }
+                    return;
                 }
-                return;
             }
         }
+
+        if (pvpManager.isBypassed(event.getPlayer())) return;
 
         Material itemType = event.getItem().getType();
 
@@ -591,7 +594,7 @@ public class CooldownListener implements Listener {
     public void onProjectileHit(org.bukkit.event.entity.ProjectileHitEvent event) {
         if (!(event.getEntity().getShooter() instanceof Player)) return;
         Player shooter = (Player) event.getEntity().getShooter();
-        if (pvpManager.isBypassed(shooter)) return;
+        if (isRangedBypassed(shooter)) return;
 
         org.bukkit.entity.Projectile proj = event.getEntity();
         boolean isRanged = false;
@@ -809,6 +812,13 @@ public class CooldownListener implements Listener {
         } else {
             cooldownManager.addItemCooldown(player, cooldownType, cooldownMs, material);
         }
+    }
+
+    private boolean isRangedBypassed(Player player) {
+        if (settings.isRangedCooldownInAllWorlds()) {
+            return pvpManager.isHasBypassPermission(player);
+        }
+        return pvpManager.isBypassed(player);
     }
 
     private void fireCooldownEvent(Player player, CooldownType type, Action action, long duration) {
